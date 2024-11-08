@@ -6,3 +6,4 @@ coef = [1, -4, 3, -2, 1, 5]
 
 roots = Solver5(coefficients).RealRoots()
 print(roots)
+
