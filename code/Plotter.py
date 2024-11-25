@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 
 from Constants import Const
 
+
 class Plotter:
     # График решения
     def __init__(self, three_body_problem):
@@ -11,14 +12,14 @@ class Plotter:
         self.__t_ax.set_xlabel("x(t)")
         self.__t_ax.set_ylabel("y(t)")
         self.__t_ax.set_zlabel("z(t)")
-        #self.__t_ax.legend()
+        # self.__t_ax.legend()
         plt.title("Ограниченная круговая задача трех тел")
 
-        xe = -Const.Mu
+        xe = -three_body_problem.mu
         ye = 0
         ze = 0
 
-        xm = 1 - Const.Mu
+        xm = 1 - three_body_problem.mu
         ym = 0
         zm = 0
 
@@ -29,7 +30,14 @@ class Plotter:
         self.__t_ax.text(xe, ye, ze, three_body_problem.bodies[0], color="red")
         self.__t_ax.text(xm, ym, zm, three_body_problem.bodies[1], color="red")
 
-        self.__t_ax.set_xlim([1 - Const.Mu - 0.6, 1 - Const.Mu + 0.6])
+        # Точки лагранжа
+        Libration_Names = ["L1", "L2", "L3", "L4", "L5"]
+        self.__t_ax.scatter(three_body_problem.Libration[0], three_body_problem.Libration[1], three_body_problem.Libration[2], three_body_problem.bodies[1],
+                            color="green")
+        for xi, yi, zi, label in zip(three_body_problem.Libration[0], three_body_problem.Libration[1], three_body_problem.Libration[2], Libration_Names):
+            self.__t_ax.text(xi, yi, zi, label, color="green")
+
+        self.__t_ax.set_xlim([1 - three_body_problem.mu - 0.6, 1 - three_body_problem.mu + 0.6])
         self.__t_ax.set_ylim([-0.6, 0.6])
         self.__t_ax.set_zlim([-0.6, 0.6])
 
@@ -46,5 +54,3 @@ class Plotter:
                          three_body_problem.jacoby_integral)
 
         plt.show()
-
-
