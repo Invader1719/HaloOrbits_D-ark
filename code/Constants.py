@@ -8,6 +8,7 @@ class Const:
     Mass_Sun = 1.988416e30 #kg
     Grav = 6.67430e-11 #CI units
     Dist_Moon =  384399000 #m
+    Dist_Sun = 149598261000 #m
     cos30 =( 3 ** 0.5) / 2
     cos45 =  1 / (2 ** 0.5)
 
