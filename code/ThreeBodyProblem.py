@@ -4,20 +4,25 @@ import numpy as np
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 import matplotlib.pyplot as plt
+from Constants import Const, countlibra
 
-from Constants import Const
 
 class ThreeBodyProblem:
 
     def __init__(self, type):
         if type == "Sun Earth":
-            self.__mu = Const.Mass_Earth / (Const.Mass_Earth + Const.Mass_Sun)
+            self.mu = Const.Mass_Earth / (Const.Mass_Earth + Const.Mass_Sun)
+            self.a = Const.Dist_Sun
             self.bodies = ["Солнце", "Земля"]
+
         elif type == "Earth Moon":
-            self.__mu = Const.Mass_Moon / (Const.Mass_Earth + Const.Mass_Moon)
+            self.mu = Const.Mass_Moon / (Const.Mass_Earth + Const.Mass_Moon)
+            self.a = Const.Dist_Moon
             self.bodies = ["Земля", "Луна"]
         else:
             raise "wrong system type"
+
+        self.Libration = countlibra(self.mu)
 
         self.__sampling_frequency = 1000
         self.solution = np.zeros(self.__sampling_frequency)
@@ -83,18 +88,24 @@ class ThreeBodyProblem:
         return self.jacoby_integral
 
     def halo_r3oa(self, Az_km, lp_name, n_phase=1):
+        '''
+        :param Az_km: Стартовая точка по оси z в ккилометрах, мысчитаем что начинаем максимально высоко
+        :param lp_name: Вокруг какой точки лагража начинаем
+        :param n_phase:
+        :return: параметра старта для гало орбиты и период
+        '''
         def lambda_eqw(lmb):
             return lmb**4 + (c2 - 2.) * lmb**2 - (c2 - 1.) * (1. + 2. * c2)
 
         # Get L points
         if lp_name == "L1":
-            gamma_l = (1. - self.mu) - self.get_l1_quintic()
+            gamma_l = (1. - self.mu) - self.Libration[0][0] # Расстояние от Луны до точки лагранжа
             gamma_expr = gamma_l / (1. - gamma_l)
             c2 = (self.mu + (1. - self.mu) * gamma_expr**3) / gamma_l**3
             c3 = (self.mu - (1. - self.mu) * gamma_expr**4) / gamma_l**3
             c4 = (self.mu + (1. - self.mu) * gamma_expr**5) / gamma_l**3
         elif lp_name == "L2":
-            gamma_l = self.get_l2_quintic() - (1. - self.mu)
+            gamma_l = self.Libration[0][1] - (1. - self.mu)
             gamma_expr = gamma_l / (1. + gamma_l)
             c2 = (self.mu + (1. - self.mu) * gamma_expr**3) / gamma_l**3
             c3 = (-self.mu - (1. - self.mu) * gamma_expr**4) / gamma_l**3
@@ -109,6 +120,8 @@ class ThreeBodyProblem:
 
         k = 2. * lmbda / (lmbda**2 + 1. - c2)
 
+
+        # Все константы вида буква_номер смотреть ричардсона
         d1 = 3. * lmbda**2 * (k * (6. * lmbda**2 - 1.) - 2. * lmbda) / k
         d2 = 8. * lmbda**2 * (k * (11. * lmbda**2 - 1.) - 2. * lmbda) / k
 
@@ -147,7 +160,7 @@ class ThreeBodyProblem:
 
         Delta = lmbda**2 - c2
 
-        Az = Az_km / unit_length
+        Az = Az_km / (unit_length)
 
         Ax = np.sqrt((-l2 * Az**2 - Delta) / l1)
         Ay = k * Ax
@@ -159,17 +172,10 @@ class ThreeBodyProblem:
         delta_n = 2. - n_phase  # n_phase can be 1 or 3 (input argument)
         tau_1 = 0. + theta  # tau_z = 0. + (theta + np.pi * n / 2) this is taken care of by delta_n
 
-        x0 = a21 * Ax**2 + a22 * Az**2 - Ax * np.cos(tau_1) + \
-            (a23 * Ax**2 - a24 * Az**2) * np.cos(2. * tau_1) + \
-            (a31 * Ax**3 - a32 * Ax * Az**2) * np.cos(3. * tau_1)
-        z0 = delta_n * (Az * np.cos(tau_1) + d21 * Ax * Az * (np.cos(2. * tau_1) - 3.) +
-                        (d32 * Az * Ax**2 - d31 * Az**3) * np.cos(3. * tau_1))
-        vy0 = (k * Ax * np.cos(tau_1) + \
-            (b21 * Ax**2 - b22 * Az**2) * (2. * np.cos(2. * tau_1)) + \
-            (b31 * Ax**3 - b32 * Ax * Az**2) * 3. * np.cos(3. * tau_1))
+        x0 = a21 * Ax**2 + a22 * Az**2 - Ax * np.cos(tau_1) + (a23 * Ax**2 - a24 * Az**2) * np.cos(2. * tau_1) + (a31 * Ax**3 - a32 * Ax * Az**2) * np.cos(3. * tau_1)
+        y0 = k * Ax * np.sin(tau_1) + (b21 * Ax**2 - a22 * Az**2)*np.sin(2 * tau_1) + (b31 * Ax**3 - b32 * Ax * Az**2) * np.sin(3. * tau_1)
+        z0 = delta_n * (Az * np.cos(tau_1) + d21 * Ax * Az * (np.cos(2. * tau_1) - 3.) + (d32 * Az * Ax**2 - d31 * Az**3) * np.cos(3. * tau_1))
+        vy0 = (k * Ax * np.cos(tau_1) + (b21 * Ax**2 - b22 * Az**2) * (2. * np.cos(2. * tau_1)) + (b31 * Ax**3 - b32 * Ax * Az**2) * 3. * np.cos(3. * tau_1))
 
         return np.array([x0, 0, z0, 0, vy0, 0]), period
-
-
-
 
