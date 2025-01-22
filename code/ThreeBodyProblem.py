@@ -24,7 +24,7 @@ class ThreeBodyProblem:
 
         self.Libration = countlibra(self.mu)
 
-        self.__sampling_frequency = 1000
+        self.__sampling_frequency = 100000
         self.solution = np.zeros(self.__sampling_frequency)
         self.jacoby_integral = np.zeros(self.__sampling_frequency)
         self.__rtol = 1e-9
@@ -38,8 +38,8 @@ class ThreeBodyProblem:
     def CalculateForce(self, t, variables):
         x, y, z, vx, vy, vz = variables
 
-        r1 = np.array([-Const.Mu, 0, 0])
-        r2 = np.array([1 - Const.Mu, 0, 0])
+        r1 = np.array([-self.mu, 0, 0])
+        r2 = np.array([1 - self.mu, 0, 0])
 
         # Ось вращения системы
         w = np.array([0, 0, 1])
@@ -48,8 +48,8 @@ class ThreeBodyProblem:
         r = np.array([x, y, z])
         dr_dt = np.array([vx, vy, vz])
 
-        dr2_dt = (-(1 - Const.Mu) * (r - r1) / np.linalg.norm(r - r1) ** 3
-                  - Const.Mu * (r - r2) / np.linalg.norm(r - r2) ** 3
+        dr2_dt = (-(1 - self.mu) * (r - r1) / np.linalg.norm(r - r1) ** 3
+                  - self.mu * (r - r2) / np.linalg.norm(r - r2) ** 3
                   - np.cross(w, np.cross(w, r))
                   - 2 * np.cross(w, dr_dt))
 
@@ -57,7 +57,7 @@ class ThreeBodyProblem:
 
     def SolveDI(self, initial_conditions, time_limit):
         # Начальные условия: x(0), y(0), z(0), x'(0), y'(0), z'(0)
-        #initial_conditions = [1 - Const.Mu + 0.01, 0, 0, 0, np.sqrt(Const.Mu * 120), 0]  # 0.16784756630621525
+        #initial_conditions = [1 - self.mu + 0.01, 0, 0, 0, np.sqrt(self.mu * 120), 0]  # 0.16784756630621525
 
         t_span = (0, time_limit)
         t_eval = np.linspace(t_span[0], t_span[1], self.__sampling_frequency)
@@ -67,7 +67,8 @@ class ThreeBodyProblem:
                                     initial_conditions,
                                     t_eval=t_eval,
                                     rtol=self.__rtol,
-                                    atol=self.__atol)
+                                    atol=self.__atol,
+                                    method='Radau')
         return self.solution
 
     def CaclulateJacobyIntegral(self):
@@ -76,13 +77,13 @@ class ThreeBodyProblem:
             r = np.array([self.solution.y[0][i], self.solution.y[1][i], self.solution.y[2][i]])
             v = np.array([self.solution.y[3][i], self.solution.y[4][i], self.solution.y[5][i]])
 
-            r1 = np.array([-Const.Mu, 0, 0])
-            r2 = np.array([1 - Const.Mu, 0, 0])
+            r1 = np.array([-self.mu, 0, 0])
+            r2 = np.array([1 - self.mu, 0, 0])
             z = np.array([0, 0, 1])
 
             self.jacoby_integral[i] = (-(r[0] ** 2 + r[1] ** 2) -
-                                        2 * (1 - Const.Mu) / np.linalg.norm(r - r1) -
-                                        2 * Const.Mu / np.linalg.norm(r - r2) +
+                                        2 * (1 - self.mu) / np.linalg.norm(r - r1) -
+                                        2 * self.mu / np.linalg.norm(r - r2) +
                                         np.linalg.norm(v) ** 2)
 
         return self.jacoby_integral
@@ -113,7 +114,7 @@ class ThreeBodyProblem:
         else:
             raise Exception('Unsupported libration point specification')
 
-        unit_length = gamma_l * self.a
+        unit_length = gamma_l * self.a * 1e-3 #converting into km
 
         root = fsolve(lambda_eqw, np.array(1000))
         lmbda = root[(np.imag(root) == 0 and root > 0)][0]
@@ -177,5 +178,11 @@ class ThreeBodyProblem:
         z0 = delta_n * (Az * np.cos(tau_1) + d21 * Ax * Az * (np.cos(2. * tau_1) - 3.) + (d32 * Az * Ax**2 - d31 * Az**3) * np.cos(3. * tau_1))
         vy0 = (k * Ax * np.cos(tau_1) + (b21 * Ax**2 - b22 * Az**2) * (2. * np.cos(2. * tau_1)) + (b31 * Ax**3 - b32 * Ax * Az**2) * 3. * np.cos(3. * tau_1))
 
-        return np.array([x0, 0, z0, 0, vy0, 0]), period
+        #converting Richardson results into our system
+        r = np.array([x0, y0, z0])
+        v = np.array([0, vy0, 0])
+        print(r*gamma_l)
+        r = r * gamma_l + np.array([1. - self.mu + gamma_l, 0, 0])
+        v *= gamma_l ## * 2.0060631837 набинарил периодическую орбиту
+        return np.concatenate([r, v]), period
 
